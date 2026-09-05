@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flowers for you</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000310; }
+  canvas { display: block; width: 100%; height: 100%; }
+  button { position: fixed; right: 20px; bottom: 18px; padding: 9px 14px; color: #c8e4f8; background: #121b29a6; border: 1px solid #c8e4f833; border-radius: 24px; font: 14px system-ui; cursor: pointer; }
+  button:hover { background: #263044; }
+  button:focus-visible { outline: 2px solid #b7d9f9; outline-offset: 4px; }
+</style>
+</head>
+<body>
+<canvas id="garden" role="img" aria-label="Red and light blue roses bloom among green leaves, beneath stars and floating mixed hearts. The message Good luck with your test appears above them."></canvas>
+<button id="replay" type="button">Replay ↻</button>
+<script>
+// Everything is drawn locally: no libraries, images, or internet required.
+const canvas = document.getElementById('garden');
+const ctx = canvas.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let width, height, start = performance.now();
+function resize() {
+  width = innerWidth; height = innerHeight;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = width * dpr; canvas.height = height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize); resize();
+document.getElementById('replay').onclick = () => { start = performance.now(); };
+const clamp = x => Math.max(0, Math.min(1, x));
+const ease = x => 1 - Math.pow(1 - clamp(x), 3);
+// Deterministic randomness keeps the scene stable on resize.
+let seed = 17;
+function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+const stars = Array.from({length: 300}, () => ({x: rand(), y: rand(), r: .4 + rand() * 1.1, phase: rand() * 6.28}));
+const hearts = Array.from({length: 15}, (_, i) => ({x: rand(), y: rand(), size: 7 + rand() * 23, speed: 12 + rand() * 18, phase: rand() * 6.28, ring: i % 3 === 0, hue: i % 2 ? 'red' : 'blue'}));
+const sparks = Array.from({length: 30}, () => ({x: 330 + rand() * 290, y: 100 + rand() * 370, phase: rand() * 6.28, speed: 10 + rand() * 16}));
+function leaf(x, y, angle, length, breadth, alpha = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha *= alpha;
+  const g = ctx.createLinearGradient(0, 0, breadth, -length);
+  g.addColorStop(0, '#02241b'); g.addColorStop(.52, '#08662e'); g.addColorStop(1, '#399342');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-breadth, -length * .35, -breadth * .8, -length * .8, 0, -length);
+  ctx.bezierCurveTo(breadth, -length * .83, breadth * .85, -length * .25, 0, 0); ctx.fill();
+  ctx.restore();
+}
+function blade(x, y, dx, dy, thickness, growth) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(growth, growth);
+  const g = ctx.createLinearGradient(0, 0, dx, dy);
+  g.addColorStop(0, '#01120f'); g.addColorStop(.6, '#0a632e'); g.addColorStop(1, '#62b544');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-thickness / 2, 0);
+  ctx.quadraticCurveTo(dx * .25, dy * .88, dx, dy);
+  ctx.quadraticCurveTo(dx * .4 + thickness, dy * .67, thickness / 2, 0); ctx.fill(); ctx.restore();
+}
+const hues = {
+  red: { tip: '#ff8a96', mid: '#e23d4a', deep: '#9a1c2e', glow: '#ff4d6d55' },
+  blue: { tip: '#c8e6f8', mid: '#9ec9ec', deep: '#6b9fd4', glow: '#a9c6fc49' }
+};
+function petal(x, y, angle, rx, ry, hue) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+  const g = ctx.createLinearGradient(0, -ry, 0, ry);
+  g.addColorStop(0, hue.tip); g.addColorStop(.55, hue.mid); g.addColorStop(1, hue.deep);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+const flowers = [
+  {x: 390, y: 247, lean: -.31, delay: .75, size: .97, hue: 'red'},
+  {x: 585, y: 220, lean: .30, delay: 1.1, size: 1, hue: 'blue'},
+  {x: 490, y: 151, lean: .01, delay: .2, size: 1.04, hue: 'blue'},
+  {x: 486, y: 230, lean: -.015, delay: .55, size: 1.04, hue: 'red'}
+];
+function flower(f, t) {
+  const growth = ease((t - f.delay) / 2.8);
+  const hue = hues[f.hue];
+  ctx.save(); ctx.translate(485, 559);
+  ctx.rotate(Math.sin(t * .85 + f.delay) * .017);
+  ctx.scale(growth, growth);
+  const x = f.x - 485, y = f.y - 559;
+  const g = ctx.createLinearGradient(x - 5, 0, x + 7, 0);
+  g.addColorStop(0, '#0b4525'); g.addColorStop(.55, '#398d40'); g.addColorStop(1, '#0c4925');
+  ctx.strokeStyle = g; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(x * .45, y * .6, x, y); ctx.stroke();
+  for (let i = 0; i < 5; i++) {
+    const p = .27 + i * .125;
+    const lx = x * p, ly = y * p;
+    leaf(lx, ly, (i % 2 ? 1 : -1) * .85 + f.lean, 47 - i * 3, 17);
+  }
+  ctx.translate(x, y); const bloom = ease((t - f.delay - 1) / 1.6);
+  ctx.scale(f.size * bloom, f.size * bloom);
+  ctx.rotate(f.lean * .65);
+  ctx.save(); ctx.shadowColor = hue.glow; ctx.shadowBlur = 28;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + .25;
+    petal(Math.cos(a) * 17, Math.sin(a) * 12 - 8, a, 12, 21, hue);
+  }
+  ctx.restore();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + .7;
+    petal(Math.cos(a) * 9, Math.sin(a) * 7 - 3, a, 9, 15, hue);
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + .15;
+    petal(Math.cos(a) * 4, Math.sin(a) * 3 - 1, a, 6, 10, hue);
+  }
+  ctx.fillStyle = '#ffefd8'; ctx.beginPath(); ctx.ellipse(0, 1, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f9d34e'; ctx.shadowColor = '#ffe480'; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function heart(x, y, size, angle, alpha, ring, hue) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = alpha;
+  const stroke = hue === 'red' ? '#f6a4a4' : '#a4c1f6';
+  const fill = hue === 'red' ? '#f06a78' : '#9cbaf9';
+  if (ring) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(0, 0, size * 1.55, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.scale(size / 20, size / 20); ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.moveTo(0, 16); ctx.bezierCurveTo(-7, 8, -24, -2, -18, -12);
+  ctx.bezierCurveTo(-13, -21, -2, -18, 0, -10); ctx.bezierCurveTo(8, -24, 23, -15, 20, -5);
+  ctx.bezierCurveTo(18, 3, 7, 13, 0, 16); ctx.fill(); ctx.restore();
+}
+function draw(now) {
+  const t = reduceMotion ? 7 : (now - start) / 1000;
+  const bg = ctx.createLinearGradient(0, 0, 0, height);
+  bg.addColorStop(0, '#071319'); bg.addColorStop(.55, '#020714'); bg.addColorStop(1, '#00010d');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, width, height);
+  for (const s of stars) {
+    ctx.globalAlpha = .12 + .22 * (.5 + .5 * Math.sin(t * .6 + s.phase));
+    ctx.fillStyle = '#a6bec7'; ctx.beginPath(); ctx.arc(s.x * width, s.y * height, s.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // A 938 × 576 design space scales to both phones and desktop screens.
+  const scale = Math.min(width / 760, height / 576);
+  ctx.save(); ctx.translate(width / 2 - 469 * scale, height - 576 * scale); ctx.scale(scale, scale);
+  const growth = ease((t - .3) / 3.2);
+  const grass = [[265,560,12,-438,8],[252,562,-48,-350,9],[269,562,78,-328,7],[242,570,-63,-278,9],[695,572,-49,-249,8],[683,576,39,-255,8],[697,573,77,-162,8],[486,577,232,-235,11],[486,577,160,-225,12],[477,577,-184,-141,6],[298,575,3,-75,7],[620,576,-4,-69,7],[211,574,-24,-91,8]];
+  grass.forEach(b => blade(...b, growth));
+  ctx.save(); ctx.translate(484, 548); ctx.scale(growth, growth);
+  for (let i = 0; i < 9; i++) {
+    const p = i / 8;
+    leaf(-p * 130, -p * 145, -.95 + p * 1.6, 68 - p * 18, 24);
+    leaf(p * 104, -p * 73, 1.3 + p * 1.5, 58 - p * 20, 21);
+  }
+  ctx.restore();
+  flowers.forEach(f => flower(f, t));
+  const haze = ctx.createRadialGradient(490, 215, 0, 490, 215, 165);
+  haze.addColorStop(0, '#ffd0d809'); haze.addColorStop(.5, '#abccff08'); haze.addColorStop(1, '#abccff00'); ctx.fillStyle = haze; ctx.fillRect(325, 50, 330, 330);
+  for (const s of sparks) {
+    const y = 490 - ((490 - s.y + t * s.speed) % 440);
+    ctx.globalAlpha = ease((t - 2) / 2) * Math.pow(Math.max(0, Math.sin(t * 1.4 + s.phase)), 3);
+    ctx.fillStyle = '#e5ee76'; ctx.shadowColor = '#e5ee76'; ctx.shadowBlur = 8;
+    ctx.fillRect(s.x + Math.sin(t + s.phase) * 10, y, 2.5, 2.5);
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.restore();
+  for (const h of hearts) {
+    const y = (h.y * (height + 120) - t * h.speed) % (height + 120);
+    heart(h.x * width + Math.sin(t * .55 + h.phase) * 15, y < -60 ? y + height + 120 : y, h.size, Math.sin(t * .45 + h.phase) * .35, .18 + .5 * (.5 + .5 * Math.sin(t * .5 + h.phase)), h.ring, h.hue);
+  }
+  ctx.globalAlpha = ease((t - 3.2) / 1.5);
+  ctx.fillStyle = '#c8e4f8';
+  ctx.shadowColor = '#7eb3e8';
+  ctx.shadowBlur = 18;
+  ctx.font = `${Math.round(Math.min(width, height) * .042)}px Georgia, Palatino, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Good luck with your test, Im here for you', width / 2, height * .11);
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  if (!reduceMotion) requestAnimationFrame(draw);
+}
+if (reduceMotion) {
+  draw(performance.now());
+  addEventListener('resize', () => draw(performance.now()));
+  document.getElementById('replay').hidden = true;
+} else requestAnimationFrame(draw);
+</script>
+</body>
+</html>
