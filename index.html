@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<canvas id="garden" role="img" aria-label="Red and light blue roses bloom among green leaves, beneath stars and floating mixed hearts. The message Good luck with your test appears above them."></canvas>
+<canvas id="garden" role="img" aria-label="Red and light blue roses bloom among green leaves, beneath stars and floating mixed hearts. The message says: Good luck with your test Enya!!!! wishing you all the best! Dont get too stressed. Im here for you!!"></canvas>
 <button id="replay" type="button">Replay ↻</button>
 <script>
 // Everything is drawn locally: no libraries, images, or internet required.
@@ -160,18 +160,21 @@ function draw(now) {
   ctx.fillStyle = '#c8e4f8';
   ctx.shadowColor = '#7eb3e8';
   ctx.shadowBlur = 18;
-  ctx.font = `${Math.round(Math.min(width, height) * .042)}px Georgia, Palatino, serif`;
+  ctx.font = `${Math.round(Math.min(width, height) * .034)}px Georgia, Palatino, serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Good luck with your test Enya!!!! don\'t get too stressed. Im here for you!!', width / 2, height * .11);
-  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-  if (!reduceMotion) requestAnimationFrame(draw);
-}
-if (reduceMotion) {
-  draw(performance.now());
-  addEventListener('resize', () => draw(performance.now()));
-  document.getElementById('replay').hidden = true;
-} else requestAnimationFrame(draw);
-</script>
+  const lines = [
+    'Good luck with your test Enya!!!!',
+    'wishing you all the best!',
+    'Dont get too stressed.',
+    'Im here for you!!'
+  ];
+  const lineHeight = Math.round(Math.min(width, height) * .048);
+  const top = height * .08;
+  lines.forEach((line, i) => ctx.fillText(line, width / 2, top + i * lineHeight));
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1; if (!reduceMotion) requestAnimationFrame(draw);
+} if (reduceMotion) { draw(performance.now()); addEventListener('resize', () => draw(performance.now())); document.getElementById('replay').hidden = true; } else requestAnimationFrame(draw);
+  </script>
 </body>
+
 </html>
